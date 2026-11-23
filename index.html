@@ -44,6 +44,7 @@ button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
 .bad{color:var(--bad)}.ok{color:var(--ok)}
 .opts{display:flex;flex-wrap:wrap;gap:14px;margin-top:16px;color:var(--mut);font-size:.88rem}
 .opts label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.sides{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}.sides fieldset{border:1px solid var(--line);border-radius:10px;margin:0;padding:8px 10px;display:flex;flex-wrap:wrap;gap:6px 12px}.sides legend{color:var(--mut);font-size:.8rem;padding:0 4px}.sides label{display:flex;gap:5px;align-items:center;font-size:.88rem;cursor:pointer}@media(max-width:480px){.sides{grid-template-columns:1fr}}
 @media(max-width:480px){.big{font-size:1.8rem}.scene{height:270px}}
 </style>
 </head>
@@ -75,8 +76,22 @@ button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
     <button id="ok" class="ok">✓ Đã thuộc</button>
     <button id="next">Sau →</button>
   </div>
+  <div class="sides">
+    <fieldset><legend>Mặt trước hiển thị</legend>
+      <label><input type="checkbox" data-s="f" data-k="word" checked> Từ</label>
+      <label><input type="checkbox" data-s="f" data-k="ph" checked> Phiên âm</label>
+      <label><input type="checkbox" data-s="f" data-k="mean"> Nghĩa</label>
+      <label><input type="checkbox" data-s="f" data-k="plural"> Số nhiều</label>
+    </fieldset>
+    <fieldset><legend>Mặt sau hiển thị</legend>
+      <label><input type="checkbox" data-s="b" data-k="word"> Từ</label>
+      <label><input type="checkbox" data-s="b" data-k="ph"> Phiên âm</label>
+      <label><input type="checkbox" data-s="b" data-k="mean" checked> Nghĩa</label>
+      <label><input type="checkbox" data-s="b" data-k="plural" checked> Số nhiều</label>
+    </fieldset>
+  </div>
   <div class="opts">
-    <label><input type="checkbox" id="rev"> Hiện nghĩa trước</label>
+    <button id="swap">⇄ Đảo hai mặt</button>
     <label><input type="checkbox" id="onlyU"> Chỉ ôn từ chưa thuộc</label>
     <button id="shuf">🔀 Xáo trộn</button>
     <button id="reset">↺ Làm lại</button>
@@ -121,8 +136,15 @@ function build(shuffle){
   if(shuffle)for(let a=idx.length-1;a>0;a--){const b=Math.floor(Math.random()*(a+1));[idx[a],idx[b]]=[idx[b],idx[a]]}
   order=idx;i=0;render();
 }
-function wordHTML(c){return '<div class="big">'+esc(c.word)+'</div>'+(c.ph?'<div class="ph">'+esc(c.ph)+'</div>':'')+(c.plural?'<div class="pl">Số nhiều: <b>'+esc(c.plural)+'</b></div>':'')}
-function meanHTML(c){return '<div class="mean">'+esc(c.mean)+'</div>'}
+function sideHTML(c,s){
+  const on=k=>{const e=document.querySelector('input[data-s="'+s+'"][data-k="'+k+'"]');return e&&e.checked};
+  let h='';
+  if(on('word'))h+='<div class="big">'+esc(c.word)+'</div>';
+  if(on('ph')&&c.ph)h+='<div class="ph">'+esc(c.ph)+'</div>';
+  if(on('mean'))h+='<div class="mean">'+esc(c.mean)+'</div>';
+  if(on('plural')&&c.plural)h+='<div class="pl">Số nhiều: <b>'+esc(c.plural)+'</b></div>';
+  return h||'<div class="pl">(Chưa chọn nội dung hiển thị)</div>';
+}
 function esc(s){return s.replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
 function render(){
   flipped=false;$('card').classList.remove('flip');
@@ -135,9 +157,8 @@ function render(){
   }
   const c=cards[order[i]];
   $('pos').textContent=(i+1)+'/'+order.length;
-  const rev=$('rev').checked;
-  $('fMain').innerHTML=rev?meanHTML(c):wordHTML(c);
-  $('bMain').innerHTML=rev?wordHTML(c):meanHTML(c)+(c.plural?'<div class="pl">Số nhiều: <b>'+esc(c.plural)+'</b></div>':'');
+  $('fMain').innerHTML=sideHTML(c,'f');
+  $('bMain').innerHTML=sideHTML(c,'b');
 }
 function flip(){if(!order.length)return;flipped=!flipped;$('card').classList.toggle('flip',flipped)}
 function go(d){if(!order.length)return;i=(i+d+order.length)%order.length;render()}
@@ -164,7 +185,8 @@ $('prev').onclick=()=>go(-1);$('next').onclick=()=>go(1);
 $('ok').onclick=()=>mark(true);$('bad').onclick=()=>mark(false);
 $('shuf').onclick=()=>build(true);
 $('reset').onclick=()=>{known=new Set();build(false)};
-$('rev').onchange=render;$('onlyU').onchange=()=>build(false);
+document.querySelectorAll('input[data-s]').forEach(e=>e.onchange=render);
+$('swap').onclick=()=>{document.querySelectorAll('input[data-s="f"]').forEach(f=>{const b=document.querySelector('input[data-s="b"][data-k="'+f.dataset.k+'"]');const t=f.checked;f.checked=b.checked;b.checked=t});render()};$('onlyU').onchange=()=>build(false);
 $('back').onclick=()=>{$('study').style.display='none';$('drop').style.display='block'};
 document.addEventListener('keydown',e=>{
   if($('study').style.display!=='block'||e.target.tagName==='TEXTAREA')return;
