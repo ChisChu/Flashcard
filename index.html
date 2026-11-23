@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Flashcard từ vựng</title>
+<style>
+:root{--bg:#f6f5f1;--surf:#fff;--text:#1d1d1b;--mut:#6b6a64;--line:#dedcd3;--acc:#2f6fed;--ok:#1f9d55;--bad:#d9534f;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171716;--surf:#232321;--text:#f0efe9;--mut:#9c9b93;--line:#3a3a36;--acc:#6b9bff;--ok:#43c47a;--bad:#ef7b77;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#171716;--surf:#232321;--text:#f0efe9;--mut:#9c9b93;--line:#3a3a36;--acc:#6b9bff;--ok:#43c47a;--bad:#ef7b77;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh}
+main{max-width:720px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.3rem;margin:0 0 16px}
+.panel{background:var(--surf);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+.panel p{margin:0 0 10px;color:var(--mut);font-size:.9rem;line-height:1.5}
+code{background:var(--bg);padding:2px 6px;border-radius:5px;font-size:.85em}
+textarea{width:100%;height:110px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text);padding:10px;font:inherit;font-size:.9rem;resize:vertical}
+button,.btn{font:inherit;border:1px solid var(--line);background:var(--surf);color:var(--text);padding:9px 14px;border-radius:10px;cursor:pointer;font-size:.9rem}
+button:hover,.btn:hover{border-color:var(--acc)}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+#drop.over{outline:2px dashed var(--acc)}
+#err{color:var(--bad);font-size:.85rem;margin-top:8px;white-space:pre-wrap}
+#study{display:none}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin:6px 0 4px}
+.bar>i{display:block;height:100%;background:var(--ok);width:0;transition:width .3s}
+.stats{display:flex;justify-content:space-between;color:var(--mut);font-size:.85rem;margin-bottom:12px}
+.scene{perspective:1200px;height:300px;margin-bottom:14px}
+.card{position:relative;width:100%;height:100%;transition:transform .5s;transform-style:preserve-3d;cursor:pointer}
+.card.flip{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;background:var(--surf);border:1px solid var(--line);border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;gap:8px;overflow:auto}
+.back{transform:rotateY(180deg)}
+.big{font-size:2.2rem;font-weight:650;word-break:break-word}
+.ph{font-size:1.15rem;color:var(--acc)}
+.mean{font-size:1.5rem}
+.pl{color:var(--mut);font-size:1rem}
+.pl b{color:var(--text)}
+.hint{color:var(--mut);font-size:.75rem;position:absolute;bottom:10px}
+.spk{position:absolute;top:10px;right:10px;padding:6px 10px}
+.ctrl{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
+.ctrl button{padding:12px 6px}
+.bad{color:var(--bad)}.ok{color:var(--ok)}
+.opts{display:flex;flex-wrap:wrap;gap:14px;margin-top:16px;color:var(--mut);font-size:.88rem}
+.opts label{display:flex;gap:6px;align-items:center;cursor:pointer}
+@media(max-width:480px){.big{font-size:1.8rem}.scene{height:270px}}
+</style>
+</head>
+<body>
+<main>
+<h1>📚 Flashcard từ vựng</h1>
+
+<section class="panel" id="drop">
+  <p>Mỗi dòng một từ, ngăn cách bằng dấu <code> / </code>:<br><code>từ vựng / phiên âm / nghĩa / danh từ số nhiều (nếu có)</code></p>
+  <textarea id="txt" placeholder="apple / /ˈæp.əl/ / quả táo / apples&#10;child / /tʃaɪld/ / đứa trẻ / children&#10;study / /ˈstʌd.i/ / học"></textarea>
+  <div class="row">
+    <label class="btn">📁 Chọn file .txt<input id="file" type="file" accept=".txt,.csv,text/plain" hidden></label>
+    <button id="sample">Dùng dữ liệu mẫu</button>
+    <button class="pri" id="start">Bắt đầu học</button>
+  </div>
+  <div id="err"></div>
+</section>
+
+<section id="study">
+  <div class="stats"><span id="pos"></span><span id="knownTxt"></span></div>
+  <div class="bar"><i id="bar"></i></div>
+  <div class="scene"><div class="card" id="card">
+    <div class="face front"><button class="spk" id="spkF" title="Phát âm">🔊</button><div id="fMain"></div><div class="hint">Nhấn để lật (Space)</div></div>
+    <div class="face back"><button class="spk" id="spkB" title="Phát âm">🔊</button><div id="bMain"></div></div>
+  </div></div>
+  <div class="ctrl">
+    <button id="prev">← Trước</button>
+    <button id="bad" class="bad">✗ Chưa thuộc</button>
+    <button id="ok" class="ok">✓ Đã thuộc</button>
+    <button id="next">Sau →</button>
+  </div>
+  <div class="opts">
+    <label><input type="checkbox" id="rev"> Hiện nghĩa trước</label>
+    <label><input type="checkbox" id="onlyU"> Chỉ ôn từ chưa thuộc</label>
+    <button id="shuf">🔀 Xáo trộn</button>
+    <button id="reset">↺ Làm lại</button>
+    <button id="back">✎ Sửa danh sách</button>
+  </div>
+</section>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const SAMPLE=`apple / /ˈæp.əl/ / quả táo / apples
+child / /tʃaɪld/ / đứa trẻ / children
+study / /ˈstʌd.i/ / học, nghiên cứu
+tooth / /tuːθ/ / cái răng / teeth
+knowledge / /ˈnɒl.ɪdʒ/ / kiến thức
+mouse / /maʊs/ / con chuột / mice`;
+let cards=[],order=[],i=0,known=new Set(),flipped=false;
+
+function parse(text){
+  const out=[],errs=[];
+  text.split(/\r?\n/).forEach((raw,n)=>{
+    const line=raw.trim(); if(!line||line.startsWith('#'))return;
+    const p=line.split(/\s+\/\s+/).map(s=>s.trim());
+    if(p.length<3){errs.push('Dòng '+(n+1)+': cần ít nhất 3 phần → '+line);return}
+    let ph=p[1].replace(/^\/+|\/+$/g,'').replace(/^\[|\]$/g,'').trim();
+    out.push({word:p[0],ph:ph?'/'+ph+'/':'',mean:p[2],plural:p[3]||''});
+  });
+  return {out,errs};
+}
+function start(){
+  const {out,errs}=parse($('txt').value);
+  $('err').textContent=errs.join('\n');
+  if(!out.length){if(!errs.length)$('err').textContent='Chưa có dữ liệu.';return}
+  cards=out;known=new Set();
+  try{localStorage.setItem('fc_text',$('txt').value)}catch(e){}
+  $('study').style.display='block';$('drop').style.display='none';
+  build(false);
+}
+function build(shuffle){
+  let idx=cards.map((_,k)=>k);
+  if($('onlyU').checked)idx=idx.filter(k=>!known.has(k));
+  if(shuffle)for(let a=idx.length-1;a>0;a--){const b=Math.floor(Math.random()*(a+1));[idx[a],idx[b]]=[idx[b],idx[a]]}
+  order=idx;i=0;render();
+}
+function wordHTML(c){return '<div class="big">'+esc(c.word)+'</div>'+(c.ph?'<div class="ph">'+esc(c.ph)+'</div>':'')+(c.plural?'<div class="pl">Số nhiều: <b>'+esc(c.plural)+'</b></div>':'')}
+function meanHTML(c){return '<div class="mean">'+esc(c.mean)+'</div>'}
+function esc(s){return s.replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
+function render(){
+  flipped=false;$('card').classList.remove('flip');
+  $('knownTxt').textContent='Đã thuộc '+known.size+'/'+cards.length;
+  $('bar').style.width=(cards.length?known.size/cards.length*100:0)+'%';
+  if(!order.length){
+    $('pos').textContent='0/0';
+    $('fMain').innerHTML='<div class="big">🎉</div><div class="mean">Không còn thẻ nào cần ôn!</div>';
+    $('bMain').innerHTML=$('fMain').innerHTML;return;
+  }
+  const c=cards[order[i]];
+  $('pos').textContent=(i+1)+'/'+order.length;
+  const rev=$('rev').checked;
+  $('fMain').innerHTML=rev?meanHTML(c):wordHTML(c);
+  $('bMain').innerHTML=rev?wordHTML(c):meanHTML(c)+(c.plural?'<div class="pl">Số nhiều: <b>'+esc(c.plural)+'</b></div>':'');
+}
+function flip(){if(!order.length)return;flipped=!flipped;$('card').classList.toggle('flip',flipped)}
+function go(d){if(!order.length)return;i=(i+d+order.length)%order.length;render()}
+function mark(ok){
+  if(!order.length)return;
+  const k=order[i];ok?known.add(k):known.delete(k);
+  if(ok&&$('onlyU').checked){order.splice(i,1);if(i>=order.length)i=0;render()}else go(1);
+}
+function speak(){
+  if(!order.length||!('speechSynthesis' in window))return;
+  const u=new SpeechSynthesisUtterance(cards[order[i]].word);u.lang='en-US';
+  speechSynthesis.cancel();speechSynthesis.speak(u);
+}
+$('start').onclick=start;
+$('sample').onclick=()=>{$('txt').value=SAMPLE};
+$('file').onchange=e=>{const f=e.target.files[0];if(f)f.text().then(t=>{$('txt').value=t;start()})};
+const d=$('drop');
+d.ondragover=e=>{e.preventDefault();d.classList.add('over')};
+d.ondragleave=()=>d.classList.remove('over');
+d.ondrop=e=>{e.preventDefault();d.classList.remove('over');const f=e.dataTransfer.files[0];if(f)f.text().then(t=>{$('txt').value=t;start()})};
+$('card').onclick=e=>{if(!e.target.closest('.spk'))flip()};
+$('spkF').onclick=$('spkB').onclick=e=>{e.stopPropagation();speak()};
+$('prev').onclick=()=>go(-1);$('next').onclick=()=>go(1);
+$('ok').onclick=()=>mark(true);$('bad').onclick=()=>mark(false);
+$('shuf').onclick=()=>build(true);
+$('reset').onclick=()=>{known=new Set();build(false)};
+$('rev').onchange=render;$('onlyU').onchange=()=>build(false);
+$('back').onclick=()=>{$('study').style.display='none';$('drop').style.display='block'};
+document.addEventListener('keydown',e=>{
+  if($('study').style.display!=='block'||e.target.tagName==='TEXTAREA')return;
+  if(e.code==='Space'){e.preventDefault();flip()}
+  else if(e.key==='ArrowRight')go(1);
+  else if(e.key==='ArrowLeft')go(-1);
+  else if(e.key==='ArrowUp')mark(true);
+  else if(e.key==='ArrowDown')mark(false);
+});
+try{const t=localStorage.getItem('fc_text');if(t)$('txt').value=t}catch(e){}
+</script>
+</body>
+</html>
