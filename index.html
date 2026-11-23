@@ -148,7 +148,7 @@ function mark(ok){
 }
 function speak(){
   if(!order.length||!('speechSynthesis' in window))return;
-  const u=new SpeechSynthesisUtterance(cards[order[i]].word);u.lang='en-US';
+  const u=new SpeechSynthesisUtterance(cards[order[i]].word);u.lang='de-DE';
   speechSynthesis.cancel();speechSynthesis.speak(u);
 }
 $('start').onclick=start;
