@@ -38,6 +38,13 @@ button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
 .pl{color:var(--mut);font-size:1rem}
 .pl b{color:var(--text)}
 .hint{color:var(--mut);font-size:.75rem;position:absolute;bottom:10px}
+.chunkbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px;color:var(--mut);font-size:.88rem}
+select{font:inherit;border:1px solid var(--line);background:var(--surf);color:var(--text);padding:7px 10px;border-radius:10px}
+button:disabled{opacity:.4;cursor:default}
+.chunks{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.chunks button{padding:5px 10px;font-size:.8rem;border-radius:8px}
+.chunks button.act{background:var(--acc);border-color:var(--acc);color:#fff}
+.chunks button.done:not(.act){border-color:var(--ok);color:var(--ok)}
 .spk{position:absolute;top:10px;right:10px;padding:6px 10px}
 .ctrl{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
 .ctrl button{padding:12px 6px}
@@ -64,6 +71,11 @@ button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
 </section>
 
 <section id="study">
+  <div class="chunkbar">
+    <label>Số từ mỗi cụm <select id="csize"><option>10</option><option>20</option><option>40</option><option>80</option><option>100</option><option>200</option></select></label>
+    <button id="nextChunk">Cụm tiếp theo →</button>
+  </div>
+  <div id="chunks" class="chunks"></div>
   <div class="stats"><span id="pos"></span><span id="knownTxt"></span></div>
   <div class="bar"><i id="bar"></i></div>
   <div class="scene"><div class="card" id="card">
@@ -94,7 +106,7 @@ button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
     <button id="swap">⇄ Đảo hai mặt</button>
     <label><input type="checkbox" id="onlyU"> Chỉ ôn từ chưa thuộc</label>
     <button id="shuf">🔀 Xáo trộn</button>
-    <button id="reset">↺ Làm lại</button>
+    <button id="reset">↺ Làm lại cụm</button>
     <button id="back">✎ Sửa danh sách</button>
   </div>
 </section>
@@ -108,7 +120,7 @@ study / /ˈstʌd.i/ / học, nghiên cứu
 tooth / /tuːθ/ / cái răng / teeth
 knowledge / /ˈnɒl.ɪdʒ/ / kiến thức
 mouse / /maʊs/ / con chuột / mice`;
-let cards=[],order=[],i=0,known=new Set(),flipped=false;
+let cards=[],order=[],i=0,known=new Set(),flipped=false,chunk=0,size=10;
 
 function parse(text){
   const out=[],errs=[];
@@ -125,13 +137,13 @@ function start(){
   const {out,errs}=parse($('txt').value);
   $('err').textContent=errs.join('\n');
   if(!out.length){if(!errs.length)$('err').textContent='Chưa có dữ liệu.';return}
-  cards=out;known=new Set();
+  cards=out;known=new Set();chunk=0;
   try{localStorage.setItem('fc_text',$('txt').value)}catch(e){}
   $('study').style.display='block';$('drop').style.display='none';
   build(false);
 }
 function build(shuffle){
-  let idx=cards.map((_,k)=>k);
+  const lo=chunk*size,hi=Math.min(cards.length,lo+size);let idx=[];for(let k=lo;k<hi;k++)idx.push(k);
   if($('onlyU').checked)idx=idx.filter(k=>!known.has(k));
   if(shuffle)for(let a=idx.length-1;a>0;a--){const b=Math.floor(Math.random()*(a+1));[idx[a],idx[b]]=[idx[b],idx[a]]}
   order=idx;i=0;render();
@@ -148,11 +160,11 @@ function sideHTML(c,s){
 function esc(s){return s.replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
 function render(){
   flipped=false;$('card').classList.remove('flip');
-  $('knownTxt').textContent='Đã thuộc '+known.size+'/'+cards.length;
-  $('bar').style.width=(cards.length?known.size/cards.length*100:0)+'%';
+  const lo=chunk*size,hi=Math.min(cards.length,lo+size);let kc=0;for(let k=lo;k<hi;k++)if(known.has(k))kc++;renderChunks();$('knownTxt').textContent='Cụm '+(chunk+1)+' · đã thuộc '+kc+'/'+(hi-lo);
+  $('bar').style.width=(hi>lo?kc/(hi-lo)*100:0)+'%';
   if(!order.length){
     $('pos').textContent='0/0';
-    $('fMain').innerHTML='<div class="big">🎉</div><div class="mean">Không còn thẻ nào cần ôn!</div>';
+    $('fMain').innerHTML='<div class="big">🎉</div><div class="mean">Hoàn thành cụm này! Hãy chọn cụm tiếp theo.</div>';
     $('bMain').innerHTML=$('fMain').innerHTML;return;
   }
   const c=cards[order[i]];
@@ -160,6 +172,13 @@ function render(){
   $('fMain').innerHTML=sideHTML(c,'f');
   $('bMain').innerHTML=sideHTML(c,'b');
 }
+function chunkDone(c){const lo=c*size,hi=Math.min(cards.length,lo+size);for(let k=lo;k<hi;k++)if(!known.has(k))return false;return true}
+function renderChunks(){
+  const n=Math.ceil(cards.length/size);
+  $('chunks').innerHTML=Array.from({length:n},(_,c)=>{const d=chunkDone(c);return '<button data-c="'+c+'" class="'+(c===chunk?'act ':'')+(d?'done':'')+'">'+(d?'✓ ':'')+(c*size+1)+'-'+Math.min(cards.length,(c+1)*size)+'</button>'}).join('');
+  $('nextChunk').disabled=chunk>=n-1;
+}
+function setChunk(c){chunk=c;build(false)}
 function flip(){if(!order.length)return;flipped=!flipped;$('card').classList.toggle('flip',flipped)}
 function go(d){if(!order.length)return;i=(i+d+order.length)%order.length;render()}
 function mark(ok){
@@ -184,7 +203,10 @@ $('spkF').onclick=$('spkB').onclick=e=>{e.stopPropagation();speak()};
 $('prev').onclick=()=>go(-1);$('next').onclick=()=>go(1);
 $('ok').onclick=()=>mark(true);$('bad').onclick=()=>mark(false);
 $('shuf').onclick=()=>build(true);
-$('reset').onclick=()=>{known=new Set();build(false)};
+$('chunks').onclick=e=>{const b=e.target.closest('button');if(b)setChunk(+b.dataset.c)};
+$('nextChunk').onclick=()=>setChunk(chunk+1);
+$('csize').onchange=()=>{const lo=chunk*size;size=+$('csize').value;chunk=Math.floor(lo/size);build(false)};
+$('reset').onclick=()=>{const lo=chunk*size,hi=Math.min(cards.length,lo+size);for(let k=lo;k<hi;k++)known.delete(k);build(false)};
 document.querySelectorAll('input[data-s]').forEach(e=>e.onchange=render);
 $('swap').onclick=()=>{document.querySelectorAll('input[data-s="f"]').forEach(f=>{const b=document.querySelector('input[data-s="b"][data-k="'+f.dataset.k+'"]');const t=f.checked;f.checked=b.checked;b.checked=t});render()};$('onlyU').onchange=()=>build(false);
 $('back').onclick=()=>{$('study').style.display='none';$('drop').style.display='block'};
